@@ -1,1 +1,4 @@
 *.exe
+*.log
+*.xlsx
+linkedin.rb
