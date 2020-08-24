@@ -8,7 +8,8 @@ require "i18n"
 I18n.config.available_locales = :en
 
 def set_variables
-  @neighborhood_name = 'copacabana'
+  @neighborhood_name = 'tijuca'
+  @municipio = 'Rio de janeiro'
   @city_name = 'Rio de Janeiro'
   @bedrooms = 2
   @min_price = 0
@@ -22,7 +23,7 @@ def set_webdriver
   options = Selenium::WebDriver::Chrome::Options.new
   # options.add_option(:detach, true)
   options.add_argument("start-maximized")
-  options.add_preference('webkit.webprefs.loads_images_automatically', false)
+  # options.add_preference('webkit.webprefs.loads_images_automatically', false)
 
   @browser = Watir::Browser.new :chrome, :options => options
 end
@@ -45,7 +46,7 @@ def viva_real
 
   neighborhood_elements = form.lis(data_type: 'neighborhood')
   neighborhood_elements.each do |ne|
-    if (I18n.transliterate(ne.text.split(', ')[0]).downcase == @neighborhood_name.downcase) && ( I18n.transliterate(ne.text.split(', ')[1].split(' -')[0]).downcase == @city_name.downcase)
+    if (I18n.transliterate(ne.text.split(', ')[0]).downcase == @neighborhood_name.downcase) && (I18n.transliterate(ne.text.split(', ')[1].split(' -')[0]).downcase == @city_name.downcase)
       ne.click
       break
     end
@@ -126,5 +127,42 @@ def collect_data
   page_data
 end
 
-viva_real
+def imovelweb
+  set_variables
+  set_webdriver
+  
+  url = 'https://www.imovelweb.com.br/'
+  @browser.goto(url)
+  
+  form = @browser.form(class: 'layout-container')
+  # buy = form.button(data_tracking: "Comprar")
+  rent = form.button(data_tracking: "Alquilar")
+  rent.click
+  advanced_search = form.div(class: %w(button-more-filters css-text-c))
+  advanced_search.click
+  
+  search_container = form.div(class: %w(search-box-container))
+  neighborhood = search_container.input(class: %w(rbt-input-main form-control rbt-input)).send_keys('tijuca')
+  sleep(2)
+  neighborhoods_list = search_container.ul(id: 'typeahead-home').lis
 
+  # neighborhoods_list.each do |n|
+  #   name = I18n.transliterate(n.aria_label).downcase.split(', ')
+  #   if name[0] == @neighborhood_name.downcase
+  #     if name.length == 3
+  #       n.click if name[1] == @municipio.downcase && name[2] == @city_name.downcase
+  #     elsif name.length == 2
+  #       n.click if name[2] == @city_name.downcase
+  #     end
+  #   end
+  # end
+  bedrooms = form.div(class: 'room-type-container')
+  bedrooms.button(value: '2').click
+
+  # form.div(class: 'price-range-container').input(id: 'price-min').send_keys('1000')
+  form.div(class: 'price-range-container').input(id: 'price-max').send_keys('2000')
+  form.button(class: %w(submit-filters btn-primary btn-full)).click
+  binding.pry
+end
+
+imovelweb
