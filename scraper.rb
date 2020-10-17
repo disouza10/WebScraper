@@ -17,8 +17,8 @@ def set_variables
 end
 
 def set_webdriver
-  chrome_driver_path = File.expand_path("../..", Dir.pwd)
-  Selenium::WebDriver::Chrome::Service.driver_path=File.join(chrome_driver_path, 'chromedriver.exe')
+  # chrome_driver_path = File.expand_path("../..", Dir.pwd)
+  # Selenium::WebDriver::Chrome::Service.driver_path=File.join(chrome_driver_path, 'chromedriver.exe')
   
   options = Selenium::WebDriver::Chrome::Options.new
   # options.add_option(:detach, true)
