@@ -1,6 +1,6 @@
-require 'nokogiri'
+# require 'nokogiri'
 require 'pry'
-require 'mechanize'
+# require 'mechanize'
 require 'watir'
 require 'webdrivers'
 require 'caxlsx'
@@ -11,24 +11,29 @@ def set_variables
   @neighborhood_name = 'tijuca'
   @municipio = 'Rio de janeiro'
   @city_name = 'Rio de Janeiro'
-  @bedrooms = 2
+  @bedrooms = 1
   @min_price = 0
-  @max_price = 3000
+  @max_price = 1200
 end
 
 def set_webdriver
+  # CHROME CONFIG
   # chrome_driver_path = File.expand_path("../..", Dir.pwd)
   # Selenium::WebDriver::Chrome::Service.driver_path=File.join(chrome_driver_path, 'chromedriver.exe')
-  
   options = Selenium::WebDriver::Chrome::Options.new
+  
+  # FIREFOX CONFIG
+  # options = Selenium::WebDriver::Firefox::Options.new
+  
   # options.add_option(:detach, true)
   options.add_argument("start-maximized")
-  # options.add_preference('webkit.webprefs.loads_images_automatically', false)
-
+  options.add_preference('webkit.webprefs.loads_images_automatically', false)
+  
+  # @browser = Watir::Browser.new :firefox, :options => options
   @browser = Watir::Browser.new :chrome, :options => options
 end
 
-def viva_real
+def viva_real_search
   set_variables
   set_webdriver
   
@@ -42,7 +47,7 @@ def viva_real
   form.select_list(class: 'js-select-business').option(value: 'rent').select
   form.select_list(class: 'js-select-type').option(value: 'APARTMENT|UnitSubType_NONE,DUPLEX,LOFT,STUDIO,TRIPLEX|RESIDENTIAL|APARTMENT').select
   form.text_field.set(@neighborhood_name)
-  sleep(5)
+  sleep(2)
 
   neighborhood_elements = form.lis(data_type: 'neighborhood')
   neighborhood_elements.each do |ne|
@@ -88,7 +93,7 @@ def viva_real
       sheet.add_row [item[:area], item[:rooms], item[:suites], item[:bathrooms], item[:garage_spot], item[:price], item[:condominio], item[:link]]
     end
   end
-  p.serialize('result.xlsx')
+  p.serialize('result_viva_real.xlsx')
 end
 
 def collect_data
@@ -127,7 +132,7 @@ def collect_data
   page_data
 end
 
-def imovelweb
+def imovelweb_search
   set_variables
   set_webdriver
   
@@ -165,4 +170,33 @@ def imovelweb
   binding.pry
 end
 
-imovelweb
+def quintoandar_favorites
+  set_webdriver
+  urls = ['https://www.quintoandar.com.br/imovel/892900553', 'https://www.quintoandar.com.br/imovel/892950628', 'https://www.quintoandar.com.br/imovel/893022102', 'https://www.quintoandar.com.br/imovel/893164233', 'https://www.quintoandar.com.br/imovel/893211498', 'https://www.quintoandar.com.br/imovel/893239668']
+
+  list = Array.new(urls.size)
+  urls.each_with_index do |url, index|
+    @browser.goto(url)
+
+    specs = @browser.div(xpath: '//*[@id="app"]/div/div/main/section/div/div[1]/div/div[2]').child.children
+    total_value = @browser.span(xpath: '//*[@id="app"]/div/div/main/section/div/div[2]/section/div/ul/li[6]/div/span').text
+
+    list[index] = [url]
+    specs.each do |spec|
+      list[index] << spec.span.text
+    end
+    list[index] << total_value
+  end
+
+  p = Axlsx::Package.new
+  wb = p.workbook
+  wb.add_worksheet(:name => 'Planilha 1') do |sheet|
+    sheet.add_row ['Url', 'Área', 'Quartos', 'Banheiros', 'Vagas', 'Andar', 'Aceita pet', 'Mobilia', 'Proximo metro', 'Total']
+    list.each do |list_item|
+      sheet.add_row list_item
+    end
+  end
+  p.serialize('favoritos_quinto_andar.xlsx')
+end
+
+quintoandar_favorites
