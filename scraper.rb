@@ -21,16 +21,20 @@ def set_webdriver
   # chrome_driver_path = File.expand_path("../..", Dir.pwd)
   # Selenium::WebDriver::Chrome::Service.driver_path=File.join(chrome_driver_path, 'chromedriver.exe')
   options = Selenium::WebDriver::Chrome::Options.new
+  client = Selenium::WebDriver::Remote::Http::Default.new
+  client.read_timeout = 600
+  client.open_timeout = 600
   
   # FIREFOX CONFIG
   # options = Selenium::WebDriver::Firefox::Options.new
   
   # options.add_option(:detach, true)
-  options.add_argument("start-maximized")
-  options.add_preference('webkit.webprefs.loads_images_automatically', false)
+  # options.add_argument("start-maximized")
+  # options.add_preference('webkit.webprefs.loads_images_automatically', false)
   
   # @browser = Watir::Browser.new :firefox, :options => options
-  @browser = Watir::Browser.new :chrome, :options => options
+  # @browser = Watir::Browser.new :chrome, :options => options, :http_client => client
+  @browser = Watir::Browser.new :chrome, headless: true, :http_client => client
 end
 
 def viva_real_search
@@ -172,7 +176,20 @@ end
 
 def quintoandar_favorites
   set_webdriver
-  urls = ['https://www.quintoandar.com.br/imovel/892900553', 'https://www.quintoandar.com.br/imovel/892950628', 'https://www.quintoandar.com.br/imovel/893022102', 'https://www.quintoandar.com.br/imovel/893164233', 'https://www.quintoandar.com.br/imovel/893211498', 'https://www.quintoandar.com.br/imovel/893239668']
+  urls = [
+    'https://www.quintoandar.com.br/imovel/892900553',
+    'https://www.quintoandar.com.br/imovel/892950628',
+    'https://www.quintoandar.com.br/imovel/893022102',
+    'https://www.quintoandar.com.br/imovel/893164233',
+    'https://www.quintoandar.com.br/imovel/893211498',
+    'https://www.quintoandar.com.br/imovel/893239668',
+    'https://www.quintoandar.com.br/imovel/893066411',
+    'https://www.quintoandar.com.br/imovel/893071261',
+    'https://www.quintoandar.com.br/imovel/893170382',
+    'https://www.quintoandar.com.br/imovel/893181899',
+    'https://www.quintoandar.com.br/imovel/893191826',
+    'https://www.quintoandar.com.br/imovel/893245602'
+  ]
 
   list = Array.new(urls.size)
   urls.each_with_index do |url, index|
@@ -188,6 +205,9 @@ def quintoandar_favorites
     list[index] << total_value
   end
 
+  # TODO
+  # Adicionar um código para gerar na planilha os horários e dias de agendamento
+
   p = Axlsx::Package.new
   wb = p.workbook
   wb.add_worksheet(:name => 'Planilha 1') do |sheet|
@@ -199,4 +219,80 @@ def quintoandar_favorites
   p.serialize('favoritos_quinto_andar.xlsx')
 end
 
-quintoandar_favorites
+def olx_search
+  set_webdriver
+
+  # TODO
+  # o estado vem sempre como subdomínio
+  # ver como escolher a região, zona, bairro
+  url = 'https://rj.olx.com.br/rio-de-janeiro-e-regiao/centro/santa-teresa/imoveis/aluguel?pe=1200&bas=1&ros=1'
+  @browser.goto(url)
+
+  # ps = preco_minimo
+  # pe = preco_maximo
+  # ros = quartos_minimo        de 0 a 5, onde 5 = 5 ou mais
+  # roe = quartos_maximo        de 0 a 5, onde 5 = 5 ou mais
+  # bas = banheiros_minimo      de 0 a 5, onde 5 = 5 ou mais
+  # bae = banheiros_maximo      de 0 a 5, onde 5 = 5 ou mais
+  # gsp = vagas_garagem         de 0 a 5, onde 5 = 5 ou mais
+  # ret = tipo                  pode ser adicionado na url também, adicionando /apartamentos ou /casas ou /aluguel-de-quartos antes dos parâmetros. se escolher mais de um, tem que ser com os códigos abaixo
+  # tipo = {
+  #   1020: 'apartamentos',
+  #   1040: 'casas',
+  #   1060: 'quartos',
+  # }
+
+  # ss = area_minima
+  # se = area_maxima
+  # area = {
+  #   '0':  '0',
+  #   '1':  '30',
+  #   '2':  '60',
+  #   '3':  '90',
+  #   '4':  '120',
+  #   '5':  '150',
+  #   '6':  '180',
+  #   '7':  '200',
+  #   '8':  '250',
+  #   '9':  '300',
+  #   '10': '400',
+  #   '11': '500',
+  #   '12': 'acima de 500'
+  # }
+
+  list = []
+  urls = []
+  lis = @browser.ul(id: 'ad-list').lis
+
+  puts 'pegando as urls'
+  lis.each do |item|
+    if item.a(data_lurker_detail: 'list_id').exists?
+      urls << item.a.href
+    end
+  end
+  urls.each_with_index do |url, index|
+    @browser.goto url
+    price = @browser.h2(xpath: '//*[@id="content"]/div[2]/div/div[2]/div[2]/div[7]/div/div[1]/div[2]/h2').text.split('R$')[1].to_i
+    condo = @browser.dt(visible_text: 'Condomínio').present? ? @browser.dt(visible_text: 'Condomínio').next_sibling.text.split('R$')[1].to_i : 0
+    iptu = @browser.dt(visible_text: 'IPTU').present? ? @browser.dt(visible_text: 'IPTU').next_sibling.text.split('R$')[1].to_i : 0
+    area = @browser.dt(visible_text: 'Área útil').present? ? @browser.dt(visible_text: 'Área útil').next_sibling.text.split('m')[0].to_i : 0
+    rooms = @browser.dt(visible_text: 'Quartos').present? ? @browser.dt(visible_text: 'Quartos').next_sibling.text.to_i : 0
+    bathrooms = @browser.dt(visible_text: 'Banheiros').present? ?  @browser.dt(visible_text: 'Banheiros').next_sibling.text.to_i : 0
+    garage = @browser.dt(visible_text: 'Vagas na garagem').present? ? @browser.dt(visible_text: 'Vagas na garagem').next_sibling.text.to_i : 0
+    total = condo + price + iptu
+    list << [url, area, rooms, bathrooms, garage, total] if total < 1300
+    puts "pagina #{index + 1} de #{urls.count}"
+  end
+
+  p = Axlsx::Package.new
+  wb = p.workbook
+  wb.add_worksheet(:name => 'Planilha 1') do |sheet|
+    sheet.add_row ['Url', 'Área', 'Quartos', 'Banheiros', 'Vagas', 'Total']
+    list.each do |list_item|
+      sheet.add_row list_item
+    end
+  end
+  p.serialize('lista_olx.xlsx')
+end
+
+olx_search
